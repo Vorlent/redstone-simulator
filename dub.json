@@ -1,0 +1,10 @@
+{
+	"name": "redstone-simulator",
+	"authors": [
+		"Vorlent"
+	],
+	"description": "A simulator for redstone circuits.",
+	"copyright": "Copyright © 2017, Vorlent",
+	"license": "LGPL-3.0",
+	"libs": ["gtkd"]
+}
