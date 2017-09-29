@@ -137,7 +137,7 @@ void generateNet(Grid grid) {
 						continue;
 				}
 
-				writeln("visit ", current.x, " ", current.y, " ", current.z);
+				writeln("visit ", current.x, " ", current.y, " ", current.z, " ", metaCurrent.distance);
 				stdout.flush();
 
 				metaCurrent.closed = true;
@@ -170,9 +170,10 @@ void generateNet(Grid grid) {
 
 						open.insert(neighbour);
 
-						if(metaNeighbour.distance < currentDistance + 1 || metaNeighbour.distance == -1) {
-								metaNeighbour.distance = currentDistance;
+						if(metaNeighbour.distance > currentDistance + 1 || metaNeighbour.distance == -1) {
+								metaNeighbour.distance = cast(byte)(currentDistance + 1);
 								metaNeighbour.parent = current;
+								stdout.flush();
 						}
 				}
 
