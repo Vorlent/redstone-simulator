@@ -72,12 +72,29 @@ struct Application {
 
 		byte pickedColor = 0;
 		long selectedDepth = 0;
+
+		bool onMouseMove(long xWin, long yWin) {
+				if(dragged) {
+						cameraX += dragX - xWin;
+						cameraY += dragY - yWin;
+						dragX = xWin;
+						dragY = yWin;
+						return true;
+				}
+				return false;
+		}
 }
 
 struct Vec3 {
 		long x;
 		long y;
 		long z;
+}
+
+struct Connection {
+		Vec3 output;
+		Vec3 input;
+		byte distance;
 }
 
 struct GridMetadata {
@@ -105,14 +122,31 @@ bool isInputComponent(byte value) {
 		|| value == redstoneComparator;
 }
 
-void generateNet(Grid grid) {
-		long posX = 0;
-		long posY = 0;
-		long posZ = 0;
+bool isOutputComponent(byte value) {
+		return value == redstoneTorch
+		|| value == redstoneRepeater
+		|| value == redstoneComparator;
+}
+
+Array!Vec3 findOutputComponents(Grid grid) {
+		Array!Vec3 outputComponents = Array!Vec3();
+		foreach(x; 0..grid.width) {
+				foreach(y; 0..grid.height) {
+						foreach(z; 0..grid.depth) {
+								if(isOutputComponent(grid.get(x,y,z))) {
+										outputComponents.insert(Vec3(x,y,z));
+								}
+						}
+				}
+		}
+		return outputComponents;
+}
+
+Array!Connection generateNet(Grid grid, Vec3 start) {
 
 		// TODO reuse datastructures
 		Array!Vec3 open = Array!Vec3();
-		Array!Vec3 inputDevices = Array!Vec3();
+		Array!Connection connections = Array!Connection();
 		// TODO make 32x32x32 grid centered on start point
 		Array!GridMetadata metaGrid = Array!GridMetadata();
 
@@ -125,7 +159,7 @@ void generateNet(Grid grid) {
 				metaGrid.insert(gridMetadata);
 		}
 
-		open.insert(Vec3(posX, posY, posZ));
+		open.insert(start);
 
 		while(!open.empty) {
 				Vec3 current = open.back();
@@ -136,9 +170,6 @@ void generateNet(Grid grid) {
 				if(metaCurrent.closed) {
 						continue;
 				}
-
-				writeln("visit ", current.x, " ", current.y, " ", current.z, " ", metaCurrent.distance);
-				stdout.flush();
 
 				metaCurrent.closed = true;
 
@@ -158,9 +189,10 @@ void generateNet(Grid grid) {
 						byte currentDistance = metaCurrent.distance;
 
 						if(isInputComponent(componentType)) {
-								inputDevices.insert(neighbour);
-								writeln("InputDevice found distance: ", currentDistance);
-								stdout.flush();
+								//TODO handle blocks that are indirectly powered through a block
+								//if the connection is directed into a block check it's neighbours for
+								//input devices where the input side faces the block
+								connections.insert(Connection(start, neighbour, currentDistance));
 								return;
 						}
 
@@ -182,35 +214,32 @@ void generateNet(Grid grid) {
 				processNeighbour(Vec3(current.x, current.y + 1, current.z));
 				processNeighbour(Vec3(current.x, current.y - 1, current.z));
 
-				//check if a block above the current element blocks upwards connections
-				if(grid.checkBounds(current.x, current.z, current.y + 1)
-					&& grid.get(current.x, current.z, current.y + 1) == regularBlock) {
+				bool blockedUpwards = grid.checkBounds(current.x, current.z, current.y + 1)
+					&& grid.get(current.x, current.z, current.y + 1) == regularBlock;
+
+				if(!blockedUpwards) {
 						processNeighbour(Vec3(current.x + 1, current.y, current.z + 1));
 						processNeighbour(Vec3(current.x - 1, current.y, current.z + 1));
 						processNeighbour(Vec3(current.x, current.y + 1, current.z + 1));
 						processNeighbour(Vec3(current.x, current.y - 1, current.z + 1));
 				}
 
-				//check if a block above neighbour element blocks downwards connections
-				if(grid.checkBounds(current.x + 1, current.y, current.z)
-					&& grid.get(current.x + 1, current.y, current.z) == regularBlock) {
-						processNeighbour(Vec3(current.x + 1, current.y, current.z - 1));
+				void checkDownwardsConnections(Vec3 current, long offsetX, long offsetY) {
+						bool blockedDownwards = grid.checkBounds(current.x + offsetX, current.y + offsetY, current.z)
+								&& grid.get(current.x + offsetX, current.y + offsetY, current.z) == regularBlock;
+
+						if(!blockedDownwards) {
+								processNeighbour(Vec3(current.x + offsetX, current.y + offsetY, current.z - 1));
+						}
 				}
-				if(grid.checkBounds(current.x - 1, current.z, current.y)
-					&& grid.get(current.x - 1, current.z, current.y) == regularBlock) {
-						processNeighbour(Vec3(current.x - 1, current.y, current.z - 1));
-				}
-				if(grid.checkBounds(current.x, current.y + 1, current.z)
-					&& grid.get(current.x, current.y + 1, current.z) == regularBlock) {
-						processNeighbour(Vec3(current.x, current.y + 1, current.z - 1));
-				}
-				if(grid.checkBounds(current.x, current.y - 1, current.z)
-					&& grid.get(current.x, current.y - 1, current.z) == regularBlock) {
-						processNeighbour(Vec3(current.x, current.y - 1, current.z - 1));
-				}
+
+				checkDownwardsConnections(current,  1,  0);
+				checkDownwardsConnections(current, -1,  0);
+				checkDownwardsConnections(current,  0,  1);
+				checkDownwardsConnections(current,  0, -1);
 		}
 
-		//Finally go over the list of output devices and record their distances.
+		return connections;
 }
 
 void main(string[] args)
@@ -230,7 +259,6 @@ void main(string[] args)
 		DrawingArea drawingArea = new DrawingArea(800, 600);
 		drawingArea.addOnDraw((Scoped!Context cr, Widget widget) {
 			cr.translate(-app.cameraX, -app.cameraY);
-
 			foreach(x; 0..grid.width) {
 					foreach(y; 0..grid.height) {
 						cr.save();
@@ -253,8 +281,6 @@ void main(string[] args)
 								long index = grid.width * grid.height * app.selectedDepth + grid.width * cast(ulong)((yWin + app.cameraY) / tileWidth) + cast(ulong)((xWin + app.cameraX) / tileWidth);
 								if(index < grid.grid.length) {
 										grid.grid[index] = app.pickedColor;
-										writeln(cast(ulong)((yWin + app.cameraY) / tileWidth), " ", cast(ulong)((xWin + app.cameraX) / tileWidth));
-										stdout.flush();
 										widget.queueDraw();
 								}
 						}
@@ -281,11 +307,7 @@ void main(string[] args)
 				double xWin;
 				double yWin;
 				if(event.getCoords(xWin, yWin)) {
-						if(app.dragged) {
-								app.cameraX += app.dragX - cast(long)xWin;
-								app.cameraY += app.dragY - cast(long)yWin;
-								app.dragX = cast(ulong)xWin;
-								app.dragY = cast(ulong)yWin;
+						if(app.onMouseMove(cast(long)xWin, cast(long)yWin)) {
 								widget.queueDraw();
 						}
 				}
@@ -296,7 +318,9 @@ void main(string[] args)
 		toolbar.insert(runButton);
 		runButton.addOnClicked ((ToolButton tb) {
 				writeln("Run");
-				generateNet(grid);
+				foreach(output; findOutputComponents(grid)) {
+						generateNet(grid, output);
+				}
 		});
 
 		ToolButton stopButton = new ToolButton(null, "Stop");
