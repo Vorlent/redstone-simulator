@@ -11,6 +11,7 @@ import cairo.Context;
 import std.stdio : writeln, stdout;
 import gdk.Event;
 import std.container : Array;
+import std.bitmanip : bitfields;
 
 enum tileWidth = 16 + 1;
 enum mouseLeftButton = 1;
@@ -103,29 +104,48 @@ struct GridMetadata {
 		Vec3 parent;
 }
 
-enum redstoneWire = 1;
-enum redstoneTorch = 2;
-enum redstoneRepeater = 3;
-enum redstoneComparator = 4;
-enum regularBlock = 5;
+struct Block {
+		byte value;
+    mixin(bitfields!(
+        BlockType, "type", 6,
+        Direction, "direction", 2));
+}
+
+enum Direction
+{
+		up = 0,
+		down = 1,
+		left = 2,
+		right = 3
+}
+
+enum BlockType
+{
+		none = 0,
+		redstoneWire = 1,
+		redstoneTorch = 2,
+		redstoneRepeater = 3,
+		redstoneComparator = 4,
+		regularBlock = 5
+}
 
 bool isRedstoneComponent(byte value) {
-		return value == redstoneWire
-			|| value == redstoneTorch
-			|| value == redstoneRepeater
-			|| value == redstoneComparator;
+		return value == BlockType.redstoneWire
+			|| value == BlockType.redstoneTorch
+			|| value == BlockType.redstoneRepeater
+			|| value == BlockType.redstoneComparator;
 }
 
 bool isInputComponent(byte value) {
-		return value == redstoneTorch
-		|| value == redstoneRepeater
-		|| value == redstoneComparator;
+		return value == BlockType.redstoneTorch
+		|| value == BlockType.redstoneRepeater
+		|| value == BlockType.redstoneComparator;
 }
 
 bool isOutputComponent(byte value) {
-		return value == redstoneTorch
-		|| value == redstoneRepeater
-		|| value == redstoneComparator;
+		return value == BlockType.redstoneTorch
+		|| value == BlockType.redstoneRepeater
+		|| value == BlockType.redstoneComparator;
 }
 
 Array!Vec3 findOutputComponents(Grid grid) {
@@ -188,6 +208,15 @@ Array!Connection generateNet(Grid grid, Vec3 start) {
 
 						byte currentDistance = metaCurrent.distance;
 
+						/*
+						if(componentType == BlockType.regularBlock) {
+								if(grid.get(neighbour.x - 1, neighbour.y, neighbour.z).direction == Direction.left && isInputcomponent(...))
+								if(grid.get(neighbour.x + 1, neighbour.y, neighbour.z).direction == Direction.rght && isInputcomponent(...))
+								if(grid.get(neighbour.x, neighbour.y - 1, neighbour.z).direction == Direction.up && isInputcomponent(...))
+								if(grid.get(neighbour.x, neighbour.y + 1, neighbour.z).direction == Direction.down && isInputcomponent(...))
+						}
+						*/
+
 						if(isInputComponent(componentType)) {
 								//TODO handle blocks that are indirectly powered through a block
 								//if the connection is directed into a block check it's neighbours for
@@ -215,7 +244,7 @@ Array!Connection generateNet(Grid grid, Vec3 start) {
 				processNeighbour(Vec3(current.x, current.y - 1, current.z));
 
 				bool blockedUpwards = grid.checkBounds(current.x, current.z, current.y + 1)
-					&& grid.get(current.x, current.z, current.y + 1) == regularBlock;
+					&& grid.get(current.x, current.z, current.y + 1) == BlockType.regularBlock;
 
 				if(!blockedUpwards) {
 						processNeighbour(Vec3(current.x + 1, current.y, current.z + 1));
@@ -226,7 +255,7 @@ Array!Connection generateNet(Grid grid, Vec3 start) {
 
 				void checkDownwardsConnections(Vec3 current, long offsetX, long offsetY) {
 						bool blockedDownwards = grid.checkBounds(current.x + offsetX, current.y + offsetY, current.z)
-								&& grid.get(current.x + offsetX, current.y + offsetY, current.z) == regularBlock;
+								&& grid.get(current.x + offsetX, current.y + offsetY, current.z) == BlockType.regularBlock;
 
 						if(!blockedDownwards) {
 								processNeighbour(Vec3(current.x + offsetX, current.y + offsetY, current.z - 1));
@@ -332,35 +361,35 @@ void main(string[] args)
 		ToolButton blankButton = new ToolButton(null, "Blank");
 		toolbar.insert(blankButton);
 		blankButton.addOnClicked ((ToolButton tb) {
-				app.pickedColor = 0;
+				app.pickedColor = BlockType.none;
 		});
 
 		ToolButton redstoneDustButton = new ToolButton(null, "Redstone Dust");
 		toolbar.insert(redstoneDustButton);
 		redstoneDustButton.addOnClicked ((ToolButton tb) {
-				app.pickedColor = redstoneWire;
+				app.pickedColor = BlockType.redstoneWire;
 		});
 
 		ToolButton redstoneTorchButton = new ToolButton(null, "Redstone Torch");
 		toolbar.insert(redstoneTorchButton);
 		redstoneTorchButton.addOnClicked ((ToolButton tb) {
-				app.pickedColor = redstoneTorch;
+				app.pickedColor = BlockType.redstoneTorch;
 		});
 		ToolButton repeaterButton = new ToolButton(null, "Repeater");
 		toolbar.insert(repeaterButton);
 		repeaterButton.addOnClicked ((ToolButton tb) {
-				app.pickedColor = redstoneRepeater;
+				app.pickedColor = BlockType.redstoneRepeater;
 		});
 
 		ToolButton comparatorButton = new ToolButton(null, "Comparator");
 		toolbar.insert(comparatorButton);
 		comparatorButton.addOnClicked ((ToolButton tb) {
-				app.pickedColor = redstoneComparator;
+				app.pickedColor = BlockType.redstoneComparator;
 		});
 		ToolButton blockButton = new ToolButton(null, "Block");
 		toolbar.insert(blockButton);
 		blockButton.addOnClicked ((ToolButton tb) {
-				app.pickedColor = regularBlock;
+				app.pickedColor = BlockType.regularBlock;
 		});
 		box.add(toolbar);
 		box.add(drawingArea);
