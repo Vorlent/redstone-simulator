@@ -256,8 +256,33 @@ void main(string[] args)
 	Application app = Application();
 	populateGrid(grid, app.selectedDepth);
 
-	ImageSurface image = ImageSurface.createFromPng("icons/redstone_cross.png");
-
+	ImageSurface redstone = ImageSurface.createFromPng("icons/redstone_cross.png");
+	/*
+	ImageSurface image = ImageSurface.createFromPng("icon/redstone_unconnected.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/redstone_cross.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/redstone_horizontal.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/redstone_vertical.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/redstone_t_right.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/redstone_t_left.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/redstone_t_down.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/redstone_t_up.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/repeater_1_right.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/repeater_1_left.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/repeater_1_up.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/repeater_1_down.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/repeater_2_right.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/repeater_2_left.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/repeater_2_up.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/repeater_2_down.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/repeater_3_right.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/repeater_3_left.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/repeater_3_up.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/repeater_3_down.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/repeater_4_right.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/repeater_4_left.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/repeater_4_up.png");
+	ImageSurface image = ImageSurface.createFromPng("icon/repeater_4_down.png");
+	*/
 	DrawingArea drawingArea = new DrawingArea(800, 600);
 	drawingArea.addOnDraw((Scoped!Context cr, Widget widget) {
 		cr.translate(-app.cameraX, -app.cameraY);
@@ -265,8 +290,12 @@ void main(string[] args)
 			foreach(y; 0..grid.height) {
 				cr.save();
 					byte color = grid.get(x, y, app.selectedDepth);
-					cr.setSourceRgba(colors[color][0], colors[color][1], colors[color][2], 1.0);
 					cr.translate(2 + x * tileWidth, 2 + y * tileWidth);
+					if(redstoneWire == color) {
+						cr.setSourceSurface (redstone, 0, 0);
+					} else {
+						cr.setSourceRgba(colors[color][0], colors[color][1], colors[color][2], 1.0);
+					}
 					cr.rectangle(0.0, 0.0, 16.0, 16.0);
 					cr.fill();
 				cr.restore();
