@@ -11,14 +11,16 @@ import cairo.Context;
 import std.stdio : writeln, stdout;
 import gdk.Event;
 import std.container : Array;
-import cairo.imagesurface;
+import std.bitmanip : bitfields;
+import cairo.ImageSurface;
 
 enum tileWidth = 16 + 1;
 enum mouseLeftButton = 1;
 enum mouseMiddleButton = 2;
+enum mouseRightButton = 3;
 
 struct Grid {
-	byte[] grid;
+	Block[] grid;
 
 	int width;
 	int height;
@@ -29,18 +31,18 @@ struct Grid {
 		this.width = width;
 		this.height = height;
 		this.depth = depth;
-		this.grid = new byte[width * height * depth];
+		this.grid = new Block[width * height * depth];
 	}
 
-	byte get(long x, long y, long z) {
+	Block get(long x, long y, long z) {
 		return grid[width * height * z + y * width + x];
 	}
 
-	void set(long x, long y, long z, byte value) {
+	void set(long x, long y, long z, Block value) {
 		grid[width * height * z + y * width + x] = value;
 	}
 
-	bool checkBounds(long x, long y, long z) {
+	bool validBounds(long x, long y, long z) {
 		long index = width * height * z + y * width + x;
 		return index < grid.length && index >= 0;
 	}
@@ -49,7 +51,7 @@ struct Grid {
 void populateGrid(Grid grid, long selectedDepth) {
 	foreach(x; 0..grid.width) {
 		foreach(y; 0..grid.height) {
-			grid.set(x, y, selectedDepth, 0);
+			grid.set(x, y, selectedDepth, Block(BlockType.none, Direction.up));
 		}
 	}
 }
@@ -71,7 +73,7 @@ struct Application {
 	long cameraX = 0;
 	long cameraY = 0;
 
-	byte pickedColor = 0;
+	BlockType pickedColor = BlockType.none;
 	long selectedDepth = 0;
 
 	bool onMouseMove(long xWin, long yWin) {
@@ -84,18 +86,73 @@ struct Application {
 		}
 		return false;
 	}
+
+	ImageSurface[] images = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null
+	];
+
+	ImageSurface getImage(BlockType blocktype) {
+		return images[blocktype];
+	}
+
+	void loadImages() {
+		images[BlockType.redstoneWire] = ImageSurface.createFromPng("icons/redstone_cross.png");
+		/*
+		ImageSurface image = ImageSurface.createFromPng("icon/redstone_unconnected.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/redstone_cross.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/redstone_horizontal.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/redstone_vertical.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/redstone_t_right.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/redstone_t_left.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/redstone_t_down.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/redstone_t_up.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/repeater_1_right.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/repeater_1_left.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/repeater_1_up.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/repeater_1_down.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/repeater_2_right.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/repeater_2_left.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/repeater_2_up.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/repeater_2_down.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/repeater_3_right.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/repeater_3_left.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/repeater_3_up.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/repeater_3_down.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/repeater_4_right.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/repeater_4_left.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/repeater_4_up.png");
+		ImageSurface image = ImageSurface.createFromPng("icon/repeater_4_down.png");
+		*/
+	}
 }
 
 struct Vec3 {
 	long x;
 	long y;
 	long z;
+
+	Vec3 plus(Vec3 vec) {
+		return Vec3(vec.x + this.x, vec.y + this.y, vec.z + this.z);
+	}
 }
 
 struct Connection {
 	Vec3 output;
 	Vec3 input;
 	byte distance;
+	Direction direction;
+
+	this(Vec3 output, Vec3 input, byte distance, Direction direction) {
+		this.output = output;
+		this.input = input;
+		this.distance = distance;
+		this.direction = direction;
+	}
 }
 
 struct GridMetadata {
@@ -104,32 +161,89 @@ struct GridMetadata {
 	Vec3 parent;
 }
 
-enum redstoneWire = 1;
-enum redstoneTorch = 2;
-enum redstoneRepeater = 3;
-enum redstoneComparator = 4;
-enum regularBlock = 5;
+struct Block {
+	byte value;
 
-bool isRedstoneComponent(byte value) {
-	return value == redstoneWire
-	|| value == redstoneTorch
-	|| value == redstoneRepeater
-	|| value == redstoneComparator;
+	static Block fromByte(byte value) {
+		Block block = Block();
+		block.value = value;
+		return block;
+	}
+
+	this(BlockType type, Direction direction) {
+		this.type = type;
+		this.direction = direction;
+	}
+
+mixin(bitfields!(
+    BlockType, "type", 6,
+    Direction, "direction", 2));
 }
 
-bool isInputComponent(byte value) {
-	return value == redstoneTorch
-	|| value == redstoneRepeater
-	|| value == redstoneComparator;
+enum Direction
+{
+	up = 0,
+	down = 1,
+	left = 2,
+	right = 3
 }
 
-bool isOutputComponent(byte value) {
-	return value == redstoneTorch
-	|| value == redstoneRepeater
-	|| value == redstoneComparator;
+Direction opposite(Direction direction) {
+	final switch(direction) {
+		case Direction.up:
+			return Direction.down;
+		case Direction.down:
+			return Direction.up;
+		case Direction.left:
+			return Direction.right;
+		case Direction.right:
+			return Direction.left;
+	}
 }
 
-Array!Vec3 findOutputComponents(Grid grid) {
+Vec3 offset(Direction direction) {
+	final switch(direction) {
+		case Direction.up:
+			return Vec3(0, -1, 0);
+		case Direction.down:
+			return Vec3(0, +1, 0);
+		case Direction.left:
+			return Vec3(-1, 0, 0);
+		case Direction.right:
+			return Vec3(+1, 0, 0);
+	}
+}
+
+enum BlockType
+{
+	none = 0,
+	redstoneWire = 1,
+	redstoneTorch = 2,
+	redstoneRepeater = 3,
+	redstoneComparator = 4,
+	regularBlock = 5
+}
+
+bool isRedstoneComponent(Block block) {
+	return block.value == BlockType.redstoneWire
+		|| block.value == BlockType.redstoneTorch
+		|| block.value == BlockType.redstoneRepeater
+		|| block.value == BlockType.redstoneComparator;
+}
+
+bool isInputComponent(Block block) {
+	return block.value == BlockType.redstoneTorch
+	|| block.value == BlockType.redstoneRepeater
+	|| block.value == BlockType.redstoneComparator;
+}
+
+bool isOutputComponent(Block block) {
+	return block.value == BlockType.redstoneTorch
+	|| block.value == BlockType.redstoneRepeater
+	|| block.value == BlockType.redstoneComparator;
+}
+
+Array!Vec3 findOutputComponents(Grid* grid) {
 	Array!Vec3 outputComponents = Array!Vec3();
 	foreach(x; 0..grid.width) {
 		foreach(y; 0..grid.height) {
@@ -143,7 +257,7 @@ Array!Vec3 findOutputComponents(Grid grid) {
 	return outputComponents;
 }
 
-Array!Connection generateNet(Grid grid, Vec3 start) {
+Array!Connection generateNet(Grid* grid, Vec3 start) {
 
 	// TODO reuse datastructures
 	Array!Vec3 open = Array!Vec3();
@@ -151,10 +265,11 @@ Array!Connection generateNet(Grid grid, Vec3 start) {
 	// TODO make 32x32x32 grid centered on start point
 	Array!GridMetadata metaGrid = Array!GridMetadata();
 
-	GridMetadata gridMetadata;
-	gridMetadata.closed = false;
-	gridMetadata.distance = -1;
-	gridMetadata.parent = Vec3(0, 0, 0);
+	GridMetadata gridMetadata = {
+		closed: false,
+		distance: -1,
+		parent: Vec3(0, 0, 0)
+	};
 
 	foreach(x; 0..grid.grid.length) {
 		metaGrid.insert(gridMetadata);
@@ -167,19 +282,18 @@ Array!Connection generateNet(Grid grid, Vec3 start) {
 		open.removeBack();
 
 		GridMetadata* metaCurrent = &metaGrid[grid.width * grid.height * current.z + current.y * grid.width + current.x];
-
 		if(metaCurrent.closed) {
-				continue;
+			continue;
 		}
 
 		metaCurrent.closed = true;
 
-		void processNeighbour(Vec3 neighbour) {
-			if(!grid.checkBounds(neighbour.x, neighbour.y, neighbour.z)) {
+		void processNeighbour(Vec3 neighbour, Direction direction) {
+			if(!grid.validBounds(neighbour.x, neighbour.y, neighbour.z)) {
 				return;
 			}
 
-			byte componentType = grid.get(neighbour.x, neighbour.y, neighbour.z);
+			Block componentType = grid.get(neighbour.x, neighbour.y, neighbour.z);
 
 			GridMetadata* metaNeighbour = &metaGrid[grid.width * grid.height * neighbour.z + neighbour.y * grid.width + neighbour.x];
 
@@ -189,11 +303,23 @@ Array!Connection generateNet(Grid grid, Vec3 start) {
 
 			byte currentDistance = metaCurrent.distance;
 
-			if(isInputComponent(componentType)) {
-				//TODO handle blocks that are indirectly powered through a block
-				//if the connection is directed into a block check it's neighbours for
-				//input devices where the input side faces the block
-				connections.insert(Connection(start, neighbour, currentDistance));
+			if(componentType.type == BlockType.regularBlock) {
+				void indirectlyPowered(Direction direction) {
+					Vec3 position = neighbour.plus(direction.offset());
+					Block block = grid.get(position.x, position.y, position.z);
+					if(block.direction == direction && block.isInputComponent()) {
+						connections.insert(Connection(start, Vec3(position.x, position.y, position.z), currentDistance, direction.opposite()));
+					}
+				}
+				indirectlyPowered(Direction.left);
+				indirectlyPowered(Direction.right);
+				indirectlyPowered(Direction.up);
+				indirectlyPowered(Direction.down);
+				return;
+			}
+
+			if(componentType.isInputComponent()) {
+				connections.insert(Connection(start, neighbour, currentDistance, direction));
 				return;
 			}
 
@@ -210,36 +336,122 @@ Array!Connection generateNet(Grid grid, Vec3 start) {
 			}
 		}
 
-		processNeighbour(Vec3(current.x + 1, current.y, current.z));
-		processNeighbour(Vec3(current.x - 1, current.y, current.z));
-		processNeighbour(Vec3(current.x, current.y + 1, current.z));
-		processNeighbour(Vec3(current.x, current.y - 1, current.z));
+		processNeighbour(Vec3(current.x + 1, current.y, current.z), Direction.right);
+		processNeighbour(Vec3(current.x - 1, current.y, current.z), Direction.left);
+		processNeighbour(Vec3(current.x, current.y + 1, current.z), Direction.up);
+		processNeighbour(Vec3(current.x, current.y - 1, current.z), Direction.down);
 
-		bool blockedUpwards = grid.checkBounds(current.x, current.z, current.y + 1)
-			&& grid.get(current.x, current.z, current.y + 1) == regularBlock;
+		bool blockedUpwards = grid.validBounds(current.x, current.z, current.y + 1)
+			&& grid.get(current.x, current.z, current.y + 1).type == BlockType.regularBlock;
 
 		if(!blockedUpwards) {
-			processNeighbour(Vec3(current.x + 1, current.y, current.z + 1));
-			processNeighbour(Vec3(current.x - 1, current.y, current.z + 1));
-			processNeighbour(Vec3(current.x, current.y + 1, current.z + 1));
-			processNeighbour(Vec3(current.x, current.y - 1, current.z + 1));
+			processNeighbour(Vec3(current.x + 1, current.y, current.z + 1), Direction.right);
+			processNeighbour(Vec3(current.x - 1, current.y, current.z + 1), Direction.left);
+			processNeighbour(Vec3(current.x, current.y + 1, current.z + 1), Direction.up);
+			processNeighbour(Vec3(current.x, current.y - 1, current.z + 1), Direction.down);
 		}
 
-		void checkDownwardsConnections(Vec3 current, long offsetX, long offsetY) {
-			bool blockedDownwards = grid.checkBounds(current.x + offsetX, current.y + offsetY, current.z)
-				&& grid.get(current.x + offsetX, current.y + offsetY, current.z) == regularBlock;
-
+		void checkDownwardsConnections(Vec3 current, Direction direction) {
+			Vec3 position = current.plus(direction.offset());
+			bool blockedDownwards = grid.validBounds(position.x, position.y, position.z)
+				&& grid.get(position.x, position.y, position.z).type == BlockType.regularBlock;
 			if(!blockedDownwards) {
-				processNeighbour(Vec3(current.x + offsetX, current.y + offsetY, current.z - 1));
+				processNeighbour(position.plus(Vec3(0,0,-1)), direction);
 			}
 		}
 
-		checkDownwardsConnections(current,  1,  0);
-		checkDownwardsConnections(current, -1,  0);
-		checkDownwardsConnections(current,  0,  1);
-		checkDownwardsConnections(current,  0, -1);
+		checkDownwardsConnections(current, Direction.right);
+		checkDownwardsConnections(current, Direction.left);
+		checkDownwardsConnections(current, Direction.up);
+		checkDownwardsConnections(current, Direction.down);
 	}
 	return connections;
+}
+
+void loadRedstoneImage() {
+	ImageSurface.createFromPng("redstone.png");
+}
+
+/*
+//TODO support incremental simuation to only simulate changes
+function simulateTick(Array!Connection netlist) {
+	foreach(connection; netlist) {
+		if(grid[connection.output] == BlockType.redstoneTorch) {
+			powerGrid[connection.input] = powerGrid[connection.output] > 0 ? 0 : 15;
+		}
+		if(grid[connection.output] == BlockType.repeater_delay_1) {
+			powerGrid[connection.input] = powerGrid[connection.output];
+		}
+		if(grid[connection.output] == BlockType.repeater_delay_2..4) { ???
+			powerGrid[connection.input] = delay by 2,3,4 powerGrid[connection.output];
+		}
+		//I could add a metadata section but not every connection needs metadata so it's a waste of bandwidth
+		//I'd need to store 4 bytes to support the repeater for every block
+		//imagine a large design of 16000x16000 blocks with 3 million netlist entries
+		//it would waste 1GB of memory just on repeater metadata
+		if(grid[connection.output] == BlockType.comparator) {
+			Compare signal strength
+			A redstone comparator in comparison mode (front torch down and unpowered) will compare its rear input to its two side inputs.
+			If either side input is greater than the rear input, the comparator output turns off.
+			If neither side input is greater than the rear input, the comparator simply outputs the same signal strength as its rear input.
+
+			Subtract signal strength
+			A redstone comparator in subtraction mode (front torch up and powered) will subtract the signal strength of the
+			highest side input from the signal strength of the rear input (minimum 0 signal strength).
+			For example, if the rear input signal strength is 7, the left side is 2, and the right side is 4,
+			then the output will be a signal strength of 3, because 7 - MAX(2,4) = 3.
+		}
+		//TODO buttons/levers
+	}
+}
+*/
+
+void drawGrid(Application* app, Grid* grid, Scoped!Context* cr) {
+	cr.translate(-app.cameraX, -app.cameraY);
+	foreach(x; 0..grid.width) {
+		foreach(y; 0..grid.height) {
+			cr.save();
+				Block color = grid.get(x, y, app.selectedDepth);
+				ImageSurface surface = app.getImage(color.type);
+				cr.translate(2 + x * tileWidth, 2 + y * tileWidth);
+				if(surface !is null) {
+					cr.setSourceSurface(surface, 0, 0);
+				} else {
+					cr.setSourceRgba(colors[color.type][0], colors[color.type][1], colors[color.type][2], 1.0);
+				}
+				cr.rectangle(0.0, 0.0, 16.0, 16.0);
+				cr.fill();
+			cr.restore();
+		}
+	}
+}
+
+bool onMouseButtonPress(Application* app, Grid* grid, uint button, double xWin, double yWin) {
+	if(button == mouseLeftButton || button == mouseRightButton) {
+		long posX = cast(ulong)((xWin + app.cameraX) / tileWidth);
+		long posY = cast(ulong)((yWin + app.cameraY) / tileWidth);
+		if(grid.validBounds(posX, posY, app.selectedDepth)) {
+			BlockType type = app.pickedColor;
+			if(button == mouseRightButton) {
+				type = BlockType.none;
+			}
+			grid.set(posX, posY, app.selectedDepth, Block(type, Direction.up));
+			return true;
+		}
+	}
+	if(button == mouseMiddleButton) {
+		app.dragX = cast(ulong)xWin;
+		app.dragY = cast(ulong)yWin;
+		app.dragged = true;
+		return true;
+	}
+	return false;
+}
+
+void onMouseButtonRelease(Application* app, uint button) {
+	if(button == mouseMiddleButton) {
+		app.dragged = false;
+	}
 }
 
 void main(string[] args)
@@ -254,53 +466,12 @@ void main(string[] args)
 	Grid grid = Grid(128, 128, 4);
 
 	Application app = Application();
+	app.loadImages();
 	populateGrid(grid, app.selectedDepth);
 
-	ImageSurface redstone = ImageSurface.createFromPng("icons/redstone_cross.png");
-	/*
-	ImageSurface image = ImageSurface.createFromPng("icon/redstone_unconnected.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/redstone_cross.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/redstone_horizontal.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/redstone_vertical.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/redstone_t_right.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/redstone_t_left.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/redstone_t_down.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/redstone_t_up.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/repeater_1_right.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/repeater_1_left.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/repeater_1_up.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/repeater_1_down.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/repeater_2_right.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/repeater_2_left.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/repeater_2_up.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/repeater_2_down.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/repeater_3_right.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/repeater_3_left.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/repeater_3_up.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/repeater_3_down.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/repeater_4_right.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/repeater_4_left.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/repeater_4_up.png");
-	ImageSurface image = ImageSurface.createFromPng("icon/repeater_4_down.png");
-	*/
 	DrawingArea drawingArea = new DrawingArea(800, 600);
 	drawingArea.addOnDraw((Scoped!Context cr, Widget widget) {
-		cr.translate(-app.cameraX, -app.cameraY);
-		foreach(x; 0..grid.width) {
-			foreach(y; 0..grid.height) {
-				cr.save();
-					byte color = grid.get(x, y, app.selectedDepth);
-					cr.translate(2 + x * tileWidth, 2 + y * tileWidth);
-					if(redstoneWire == color) {
-						cr.setSourceSurface (redstone, 0, 0);
-					} else {
-						cr.setSourceRgba(colors[color][0], colors[color][1], colors[color][2], 1.0);
-					}
-					cr.rectangle(0.0, 0.0, 16.0, 16.0);
-					cr.fill();
-				cr.restore();
-			}
-		}
+		drawGrid(&app, &grid, &cr);
 		return false;
 	});
 	drawingArea.addOnButtonPress((Event event, Widget widget) {
@@ -308,29 +479,17 @@ void main(string[] args)
 		double xWin;
 		double yWin;
 		if(event.getButton(button) && event.getCoords(xWin, yWin)) {
-			if(button == mouseLeftButton) {
-				long index = grid.width * grid.height * app.selectedDepth + grid.width * cast(ulong)((yWin + app.cameraY) / tileWidth) + cast(ulong)((xWin + app.cameraX) / tileWidth);
-				if(index < grid.grid.length) {
-					grid.grid[index] = app.pickedColor;
-					widget.queueDraw();
-				}
-			}
-			if(button == mouseMiddleButton) {
-				app.dragX = cast(ulong)xWin;
-				app.dragY = cast(ulong)yWin;
-				app.dragged = true;
+			if(onMouseButtonPress(&app, &grid, button, xWin, yWin)) {
+				widget.queueDraw();
 			}
 		}
 		return false;
 	});
+
 	drawingArea.addOnButtonRelease ((Event event, Widget widget) {
 		uint button;
-		double xWin;
-		double yWin;
-		if(event.getButton(button) && event.getCoords(xWin, yWin)) {
-			if(button == mouseMiddleButton) {
-				app.dragged = false;
-			}
+		if(event.getButton(button)) {
+			onMouseButtonRelease(&app, button);
 		}
 		return false;
 	});
@@ -348,9 +507,8 @@ void main(string[] args)
 	ToolButton runButton = new ToolButton(null, "Run");
 	toolbar.insert(runButton);
 	runButton.addOnClicked ((ToolButton tb) {
-		writeln("Run");
-		foreach(output; findOutputComponents(grid)) {
-			generateNet(grid, output);
+		foreach(output; findOutputComponents(&grid)) {
+			generateNet(&grid, output);
 		}
 	});
 
@@ -363,35 +521,35 @@ void main(string[] args)
 	ToolButton blankButton = new ToolButton(null, "Blank");
 	toolbar.insert(blankButton);
 	blankButton.addOnClicked ((ToolButton tb) {
-		app.pickedColor = 0;
+		app.pickedColor = BlockType.none;
 	});
 
 	ToolButton redstoneDustButton = new ToolButton(null, "Redstone Dust");
 	toolbar.insert(redstoneDustButton);
 	redstoneDustButton.addOnClicked ((ToolButton tb) {
-		app.pickedColor = redstoneWire;
+		app.pickedColor = BlockType.redstoneWire;
 	});
 
 	ToolButton redstoneTorchButton = new ToolButton(null, "Redstone Torch");
 	toolbar.insert(redstoneTorchButton);
 	redstoneTorchButton.addOnClicked ((ToolButton tb) {
-		app.pickedColor = redstoneTorch;
+		app.pickedColor = BlockType.redstoneTorch;
 	});
 	ToolButton repeaterButton = new ToolButton(null, "Repeater");
 	toolbar.insert(repeaterButton);
 	repeaterButton.addOnClicked ((ToolButton tb) {
-		app.pickedColor = redstoneRepeater;
+		app.pickedColor = BlockType.redstoneRepeater;
 	});
 
 	ToolButton comparatorButton = new ToolButton(null, "Comparator");
 	toolbar.insert(comparatorButton);
 	comparatorButton.addOnClicked ((ToolButton tb) {
-		app.pickedColor = redstoneComparator;
+		app.pickedColor = BlockType.redstoneComparator;
 	});
 	ToolButton blockButton = new ToolButton(null, "Block");
 	toolbar.insert(blockButton);
 	blockButton.addOnClicked ((ToolButton tb) {
-		app.pickedColor = regularBlock;
+		app.pickedColor = BlockType.regularBlock;
 	});
 	box.add(toolbar);
 	box.add(drawingArea);
