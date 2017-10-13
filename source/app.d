@@ -102,6 +102,10 @@ struct Application {
 
 	void loadImages() {
 		images[BlockType.redstoneWire] = ImageSurface.createFromPng("icons/redstone_cross.png");
+		images[BlockType.redstoneRepeater] = ImageSurface.createFromPng("icons/repeater_1_right.png");
+		images[BlockType.redstoneComparator] = ImageSurface.createFromPng("icons/comparator_comp_left.png");
+		images[BlockType.redstoneTorch] = ImageSurface.createFromPng("icons/redstone_torch.png");
+
 		/*
 		ImageSurface image = ImageSurface.createFromPng("icon/redstone_unconnected.png");
 		ImageSurface image = ImageSurface.createFromPng("icon/redstone_cross.png");
