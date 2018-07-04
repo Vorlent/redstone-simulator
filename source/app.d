@@ -87,7 +87,7 @@ struct Application {
 		return false;
 	}
 
-	ImageSurface[] images = [
+	ImageSurface[] defaultImages = [
 		null,
 		null,
 		null,
@@ -96,42 +96,90 @@ struct Application {
 		null
 	];
 
-	ImageSurface getImage(BlockType blocktype) {
-		return images[blocktype];
+  ImageSurface[] imageRedstoneTorch = [
+		null,
+		null,
+		null,
+		null
+	];
+
+	ImageSurface[] imageRepeaterOne = [
+		null,
+		null,
+		null,
+		null
+	];
+
+	ImageSurface[] imageRepeaterTwo = [
+		null,
+		null,
+		null,
+		null
+	];
+
+	ImageSurface[] imageRepeaterThree = [
+		null,
+		null,
+		null,
+		null
+	];
+
+	ImageSurface[] imageRepeaterFour = [
+		null,
+		null,
+		null,
+		null
+	];
+
+	ImageSurface getImage(Grid* grid, Block block, long x, long y, long z) {
+		if(block.type == BlockType.redstoneTorch) {
+			return imageRedstoneTorch[block.direction];
+		}
+		if(block.type == BlockType.redstoneRepeater) {
+			return imageRepeaterOne[block.direction];
+		}
+		return defaultImages[block.type];
 	}
 
 	void loadImages() {
-		images[BlockType.redstoneWire] = ImageSurface.createFromPng("icons/redstone_cross.png");
-		images[BlockType.redstoneRepeater] = ImageSurface.createFromPng("icons/repeater_1_right.png");
-		images[BlockType.redstoneComparator] = ImageSurface.createFromPng("icons/comparator_comp_left.png");
-		images[BlockType.redstoneTorch] = ImageSurface.createFromPng("icons/redstone_torch.png");
+		defaultImages[BlockType.redstoneWire] = ImageSurface.createFromPng("icons/redstone_cross.png");
+		defaultImages[BlockType.redstoneRepeater] = ImageSurface.createFromPng("icons/repeater_1_right.png");
+		defaultImages[BlockType.redstoneComparator] = ImageSurface.createFromPng("icons/comparator_comp_left.png");
+		defaultImages[BlockType.redstoneTorch] = ImageSurface.createFromPng("icons/redstone_torch_up.png");
 
-		/*
-		ImageSurface image = ImageSurface.createFromPng("icon/redstone_unconnected.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/redstone_cross.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/redstone_horizontal.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/redstone_vertical.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/redstone_t_right.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/redstone_t_left.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/redstone_t_down.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/redstone_t_up.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/repeater_1_right.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/repeater_1_left.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/repeater_1_up.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/repeater_1_down.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/repeater_2_right.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/repeater_2_left.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/repeater_2_up.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/repeater_2_down.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/repeater_3_right.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/repeater_3_left.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/repeater_3_up.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/repeater_3_down.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/repeater_4_right.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/repeater_4_left.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/repeater_4_up.png");
-		ImageSurface image = ImageSurface.createFromPng("icon/repeater_4_down.png");
-		*/
+		/*imageRedstoneUnconnected = ImageSurface.createFromPng("icons/redstone_unconnected.png");
+		imageRedstoneCross = ImageSurface.createFromPng("icons/redstone_cross.png");
+		imageRedstoneHorizontal = ImageSurface.createFromPng("icons/redstone_horizontal.png");
+		imageRedstoneVertical = ImageSurface.createFromPng("icons/redstone_vertical.png");
+		imageRedstoneTRight = ImageSurface.createFromPng("icons/redstone_t_right.png");
+		imageRedstoneTLeft = ImageSurface.createFromPng("icons/redstone_t_left.png");
+		imageRedstoneTDown = ImageSurface.createFromPng("icons/redstone_t_down.png");
+		imageRedstoneTUp = ImageSurface.createFromPng("icons/redstone_t_up.png");*/
+
+		imageRedstoneTorch[Direction.right] = ImageSurface.createFromPng("icons/redstone_torch_right.png");
+		imageRedstoneTorch[Direction.left] = ImageSurface.createFromPng("icons/redstone_torch_left.png");
+		imageRedstoneTorch[Direction.down] = ImageSurface.createFromPng("icons/redstone_torch_down.png");
+		imageRedstoneTorch[Direction.up] = ImageSurface.createFromPng("icons/redstone_torch_up.png");
+
+		imageRepeaterOne[Direction.right] = ImageSurface.createFromPng("icons/repeater_1_right.png");
+		imageRepeaterOne[Direction.left] = ImageSurface.createFromPng("icons/repeater_1_left.png");
+		imageRepeaterOne[Direction.down] = ImageSurface.createFromPng("icons/repeater_1_up.png");
+		imageRepeaterOne[Direction.up] = ImageSurface.createFromPng("icons/repeater_1_down.png");
+
+		imageRepeaterTwo[Direction.right] = ImageSurface.createFromPng("icons/repeater_2_right.png");
+		imageRepeaterTwo[Direction.left] = ImageSurface.createFromPng("icons/repeater_2_left.png");
+		imageRepeaterTwo[Direction.down] = ImageSurface.createFromPng("icons/repeater_2_up.png");
+		imageRepeaterTwo[Direction.up] = ImageSurface.createFromPng("icons/repeater_2_down.png");
+
+		imageRepeaterThree[Direction.right] = ImageSurface.createFromPng("icons/repeater_3_right.png");
+		imageRepeaterThree[Direction.left] = ImageSurface.createFromPng("icons/repeater_3_left.png");
+		imageRepeaterThree[Direction.down] = ImageSurface.createFromPng("icons/repeater_3_up.png");
+		imageRepeaterThree[Direction.up] = ImageSurface.createFromPng("icons/repeater_3_down.png");
+
+		imageRepeaterFour[Direction.right] = ImageSurface.createFromPng("icons/repeater_4_right.png");
+		imageRepeaterFour[Direction.left] = ImageSurface.createFromPng("icons/repeater_4_left.png");
+		imageRepeaterFour[Direction.down] = ImageSurface.createFromPng("icons/repeater_4_up.png");
+		imageRepeaterFour[Direction.up] = ImageSurface.createFromPng("icons/repeater_4_down.png");
 	}
 }
 
@@ -190,6 +238,19 @@ enum Direction
 	down = 1,
 	left = 2,
 	right = 3
+}
+
+Direction clockwise(Direction direction) {
+	final switch(direction) {
+		case Direction.up:
+			return Direction.right;
+		case Direction.right:
+			return Direction.down;
+		case Direction.down:
+			return Direction.left;
+		case Direction.left:
+			return Direction.up;
+	}
 }
 
 Direction opposite(Direction direction) {
@@ -372,10 +433,6 @@ Array!Connection generateNet(Grid* grid, Vec3 start) {
 	return connections;
 }
 
-void loadRedstoneImage() {
-	ImageSurface.createFromPng("redstone.png");
-}
-
 /*
 //TODO support incremental simuation to only simulate changes
 function simulateTick(Array!Connection netlist) {
@@ -416,7 +473,7 @@ void drawGrid(Application* app, Grid* grid, Scoped!Context* cr) {
 		foreach(y; 0..grid.height) {
 			cr.save();
 				Block color = grid.get(x, y, app.selectedDepth);
-				ImageSurface surface = app.getImage(color.type);
+				ImageSurface surface = app.getImage(grid, color, x, y, app.selectedDepth);
 				cr.translate(2 + x * tileWidth, 2 + y * tileWidth);
 				if(surface !is null) {
 					cr.setSourceSurface(surface, 0, 0);
@@ -439,7 +496,30 @@ bool onMouseButtonPress(Application* app, Grid* grid, uint button, double xWin, 
 			if(button == mouseRightButton) {
 				type = BlockType.none;
 			}
-			grid.set(posX, posY, app.selectedDepth, Block(type, Direction.up));
+			Direction direction = Direction.up;
+			if(type == BlockType.redstoneTorch) {
+				if(grid.validBounds(posX, posY + 1, app.selectedDepth) && grid.get(posX, posY + 1, app.selectedDepth).type == BlockType.regularBlock) { //check if block is up
+					direction = Direction.down;
+				}
+				if(grid.validBounds(posX + 1, posY, app.selectedDepth) && grid.get(posX + 1, posY, app.selectedDepth).type == BlockType.regularBlock) { //check if block is right
+					direction = Direction.right;
+				}
+				if(grid.validBounds(posX, posY - 1, app.selectedDepth) && grid.get(posX, posY - 1, app.selectedDepth).type == BlockType.regularBlock) { //check if block is down
+					direction = Direction.up;
+				}
+				if(grid.validBounds(posX - 1, posY, app.selectedDepth) && grid.get(posX - 1, posY, app.selectedDepth).type == BlockType.regularBlock) { //check if block is left
+					direction = Direction.left;
+				}
+			}
+			if(type == BlockType.redstoneRepeater) {
+				if(grid.validBounds(posX, posY, app.selectedDepth)) {
+					Block old = grid.get(posX, posY, app.selectedDepth);
+					if(old.type == BlockType.redstoneRepeater) {
+						direction = clockwise(old.direction);
+					}
+				}
+			}
+			grid.set(posX, posY, app.selectedDepth, Block(type, direction));
 			return true;
 		}
 	}
