@@ -398,6 +398,13 @@ Array!Connection generateNet(Grid* grid, Vec3 start) {
 		void processNeighbour(Vec3 current, Direction direction) {
 			Vec3 neighbour = current.plus(direction.offset());
 
+			if(!grid.validBounds(current.x, current.y, current.z)) {
+				return;
+			}
+			if(!isOutputDirection(grid.get(current.x, current.y, current.z), direction)) {
+				return;
+			}
+
 			if(!grid.validBounds(neighbour.x, neighbour.y, neighbour.z)) {
 				return;
 			}
@@ -414,10 +421,13 @@ Array!Connection generateNet(Grid* grid, Vec3 start) {
 
 			if(componentType.type == BlockType.regularBlock) {
 				void indirectlyPowered(Direction direction) {
+					if(!isOutputDirection(componentType, direction)) {
+						return;
+					}
 					Vec3 position = neighbour.plus(direction.offset());
 					Block block = grid.get(position.x, position.y, position.z);
 					if(block.direction == direction && block.isInputComponent()) {
-						connections.insert(Connection(start, Vec3(position.x, position.y, position.z), currentDistance, direction.opposite()));
+						connections.insert(Connection(start, position, currentDistance, direction.opposite()));
 					}
 				}
 				indirectlyPowered(Direction.left);
