@@ -395,7 +395,9 @@ Array!Connection generateNet(Grid* grid, Vec3 start) {
 
 		metaCurrent.closed = true;
 
-		void processNeighbour(Vec3 neighbour, Direction direction) {
+		void processNeighbour(Vec3 current, Direction direction) {
+			Vec3 neighbour = current.plus(direction.offset());
+
 			if(!grid.validBounds(neighbour.x, neighbour.y, neighbour.z)) {
 				return;
 			}
@@ -443,19 +445,19 @@ Array!Connection generateNet(Grid* grid, Vec3 start) {
 			}
 		}
 
-		processNeighbour(Vec3(current.x + 1, current.y, current.z), Direction.right);
-		processNeighbour(Vec3(current.x - 1, current.y, current.z), Direction.left);
-		processNeighbour(Vec3(current.x, current.y + 1, current.z), Direction.up);
-		processNeighbour(Vec3(current.x, current.y - 1, current.z), Direction.down);
+		processNeighbour(current, Direction.right);
+		processNeighbour(current, Direction.left);
+		processNeighbour(current, Direction.up);
+		processNeighbour(current, Direction.down);
 
 		bool blockedUpwards = grid.validBounds(current.x, current.z, current.y + 1)
 			&& grid.get(current.x, current.z, current.y + 1).type == BlockType.regularBlock;
 
 		if(!blockedUpwards) {
-			processNeighbour(Vec3(current.x + 1, current.y, current.z + 1), Direction.right);
-			processNeighbour(Vec3(current.x - 1, current.y, current.z + 1), Direction.left);
-			processNeighbour(Vec3(current.x, current.y + 1, current.z + 1), Direction.up);
-			processNeighbour(Vec3(current.x, current.y - 1, current.z + 1), Direction.down);
+			processNeighbour(current.plus(Vec3(0,0,1)), Direction.right);
+			processNeighbour(current.plus(Vec3(0,0,1)), Direction.left);
+			processNeighbour(current.plus(Vec3(0,0,1)), Direction.up);
+			processNeighbour(current.plus(Vec3(0,0,1)), Direction.down);
 		}
 
 		void checkDownwardsConnections(Vec3 current, Direction direction) {
@@ -634,7 +636,11 @@ void main(string[] args)
 	toolbar.insert(runButton);
 	runButton.addOnClicked ((ToolButton tb) {
 		foreach(output; findOutputComponents(&grid)) {
-			generateNet(&grid, output);
+			Array!Connection connections = generateNet(&grid, output);
+			writeln(connections.length());
+			foreach(con; connections) {
+				writeln(con);
+			}
 		}
 	});
 
