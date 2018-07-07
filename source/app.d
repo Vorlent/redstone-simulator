@@ -13,6 +13,7 @@ import gdk.Event;
 import std.container : Array;
 import std.bitmanip : bitfields;
 import cairo.ImageSurface;
+import std.conv;
 
 enum tileWidth = 16 + 1;
 enum mouseLeftButton = 1;
@@ -191,6 +192,17 @@ struct Vec3 {
 	Vec3 plus(Vec3 vec) {
 		return Vec3(vec.x + this.x, vec.y + this.y, vec.z + this.z);
 	}
+
+	void toString(scope void delegate(const(char)[]) sink) const
+	{
+		sink("Vec3[ x: ");
+		sink(to!string(x));
+		sink(", y: ");
+		sink(to!string(y));
+		sink(", z: ");
+		sink(to!string(z));
+		sink(" ]");
+	}
 }
 
 struct Connection {
@@ -204,6 +216,19 @@ struct Connection {
 		this.input = input;
 		this.distance = distance;
 		this.direction = direction;
+	}
+
+	void toString(scope void delegate(const(char)[]) sink) const
+	{
+		sink("Connection[ output: ");
+		output.toString(sink);
+		sink(", input: ");
+		input.toString(sink);
+		sink(", distance: ");
+		sink(to!string(distance));
+		sink(", direction: ");
+		sink(to!string(direction));
+		sink(" ]");
 	}
 }
 
@@ -290,22 +315,39 @@ enum BlockType
 }
 
 bool isRedstoneComponent(Block block) {
-	return block.value == BlockType.redstoneWire
-		|| block.value == BlockType.redstoneTorch
-		|| block.value == BlockType.redstoneRepeater
-		|| block.value == BlockType.redstoneComparator;
+	return block.type == BlockType.redstoneWire
+	|| block.type == BlockType.redstoneTorch
+	|| block.type == BlockType.redstoneRepeater
+	|| block.type == BlockType.redstoneComparator;
 }
 
 bool isInputComponent(Block block) {
-	return block.value == BlockType.redstoneTorch
-	|| block.value == BlockType.redstoneRepeater
-	|| block.value == BlockType.redstoneComparator;
+	return block.type == BlockType.redstoneTorch
+	|| block.type == BlockType.redstoneRepeater
+	|| block.type == BlockType.redstoneComparator;
 }
 
 bool isOutputComponent(Block block) {
-	return block.value == BlockType.redstoneTorch
-	|| block.value == BlockType.redstoneRepeater
-	|| block.value == BlockType.redstoneComparator;
+	return block.type == BlockType.redstoneTorch
+	|| block.type == BlockType.redstoneRepeater
+	|| block.type == BlockType.redstoneComparator;
+}
+
+bool isOutputDirection(Block block, Direction direction) {
+	final switch(block.type) {
+		case BlockType.none:
+			return false;
+		case BlockType.redstoneWire:
+			return true;
+		case BlockType.redstoneTorch:
+			return opposite(block.direction) != direction;
+		case BlockType.redstoneRepeater:
+			return block.direction == direction;
+		case BlockType.redstoneComparator:
+			return block.direction == direction;
+		case BlockType.regularBlock:
+			return false;
+	}
 }
 
 Array!Vec3 findOutputComponents(Grid* grid) {
