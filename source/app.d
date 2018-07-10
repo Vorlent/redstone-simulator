@@ -14,6 +14,7 @@ import std.container : Array;
 import std.bitmanip : bitfields;
 import cairo.ImageSurface;
 import std.conv;
+import std.math : PI;
 
 enum tileWidth = 16 + 1;
 enum mouseLeftButton = 1;
@@ -538,6 +539,25 @@ function simulateTick(Array!Connection netlist) {
 }
 */
 
+double degreesToRadians(double degrees)
+{
+    return degrees * (PI/180.0);
+}
+
+void fixDirection(Scoped!Context* cr, Direction direction) {
+	final switch(direction) {
+		case Direction.up:
+		case Direction.down:
+			cr.rotate(degreesToRadians(180));
+			cr.translate(-tileWidth + 1, -tileWidth + 1);
+			break;
+		case Direction.right:
+		case Direction.left:
+		//no rotation
+			break;
+	}
+}
+
 void drawGrid(Application* app, Grid* grid, Scoped!Context* cr) {
 	cr.translate(-app.cameraX, -app.cameraY);
 	foreach(x; 0..grid.width) {
@@ -546,6 +566,7 @@ void drawGrid(Application* app, Grid* grid, Scoped!Context* cr) {
 				Block color = grid.get(x, y, app.selectedDepth);
 				ImageSurface surface = app.getImage(grid, color, x, y, app.selectedDepth);
 				cr.translate(2 + x * tileWidth, 2 + y * tileWidth);
+				fixDirection(cr, color.direction);
 				if(surface !is null) {
 					cr.setSourceSurface(surface, 0, 0);
 				} else {
@@ -569,13 +590,13 @@ bool onMouseButtonPress(Application* app, Grid* grid, uint button, double xWin, 
 			}
 			Direction direction = Direction.up;
 			if(type == BlockType.redstoneTorch) {
-				if(grid.validBounds(posX, posY + 1, app.selectedDepth) && grid.get(posX, posY + 1, app.selectedDepth).type == BlockType.regularBlock) { //check if block is up
+				if(grid.validBounds(posX, posY - 1, app.selectedDepth) && grid.get(posX, posY - 1, app.selectedDepth).type == BlockType.regularBlock) { //check if block is up
 					direction = Direction.down;
 				}
 				if(grid.validBounds(posX + 1, posY, app.selectedDepth) && grid.get(posX + 1, posY, app.selectedDepth).type == BlockType.regularBlock) { //check if block is right
 					direction = Direction.right;
 				}
-				if(grid.validBounds(posX, posY - 1, app.selectedDepth) && grid.get(posX, posY - 1, app.selectedDepth).type == BlockType.regularBlock) { //check if block is down
+				if(grid.validBounds(posX, posY + 1, app.selectedDepth) && grid.get(posX, posY + 1, app.selectedDepth).type == BlockType.regularBlock) { //check if block is down
 					direction = Direction.up;
 				}
 				if(grid.validBounds(posX - 1, posY, app.selectedDepth) && grid.get(posX - 1, posY, app.selectedDepth).type == BlockType.regularBlock) { //check if block is left
