@@ -36,16 +36,16 @@ struct Grid {
 		this.grid = new Block[width * height * depth];
 	}
 
-	Block get(long x, long y, long z) {
-		return grid[width * height * z + y * width + x];
+	Block get(Vec3 position) {
+		return grid[width * height * position.z + position.y * width + position.x];
 	}
 
-	void set(long x, long y, long z, Block value) {
-		grid[width * height * z + y * width + x] = value;
+	void set(Vec3 position, Block value) {
+		grid[width * height * position.z + position.y * width + position.x] = value;
 	}
 
-	bool validBounds(long x, long y, long z) {
-		long index = width * height * z + y * width + x;
+	bool validBounds(Vec3 position) {
+		long index = width * height * position.z + position.y * width + position.x;
 		return index < grid.length && index >= 0;
 	}
 }
@@ -53,7 +53,7 @@ struct Grid {
 void populateGrid(Grid grid, long selectedDepth) {
 	foreach(x; 0..grid.width) {
 		foreach(y; 0..grid.height) {
-			grid.set(x, y, selectedDepth, Block(BlockType.none, Direction.up));
+			grid.set(Vec3(x, y, selectedDepth), Block(BlockType.none, Direction.up));
 		}
 	}
 }
@@ -388,8 +388,9 @@ Array!Vec3 findOutputComponents(Grid* grid) {
 	foreach(x; 0..grid.width) {
 		foreach(y; 0..grid.height) {
 			foreach(z; 0..grid.depth) {
-				if(isOutputComponent(grid.get(x,y,z))) {
-					outputComponents.insert(Vec3(x,y,z));
+				Vec3 pos = Vec3(x,y,z);
+				if(isOutputComponent(grid.get(pos))) {
+					outputComponents.insert(pos);
 				}
 			}
 		}
@@ -431,18 +432,18 @@ Array!Connection generateNet(Grid* grid, Vec3 start) {
 		void processNeighbour(Vec3 current, Direction direction) {
 			Vec3 neighbour = current.plus(direction.offset());
 
-			if(!grid.validBounds(current.x, current.y, current.z)) {
+			if(!grid.validBounds(current)) {
 				return;
 			}
-			if(!isOutputDirection(grid.get(current.x, current.y, current.z), direction)) {
-				return;
-			}
-
-			if(!grid.validBounds(neighbour.x, neighbour.y, neighbour.z)) {
+			if(!isOutputDirection(grid.get(current), direction)) {
 				return;
 			}
 
-			Block componentType = grid.get(neighbour.x, neighbour.y, neighbour.z);
+			if(!grid.validBounds(neighbour)) {
+				return;
+			}
+
+			Block componentType = grid.get(neighbour);
 
 			GridMetadata* metaNeighbour = &metaGrid[grid.width * grid.height * neighbour.z + neighbour.y * grid.width + neighbour.x];
 
@@ -458,7 +459,7 @@ Array!Connection generateNet(Grid* grid, Vec3 start) {
 						return;
 					}
 					Vec3 position = neighbour.plus(direction.offset());
-					Block block = grid.get(position.x, position.y, position.z);
+					Block block = grid.get(position);
 					if(isInputDirection(block, opposite(direction)) && block.isInputComponent()) {
 						connections.insert(Connection(start, position, currentDistance, direction.opposite()));
 					}
@@ -493,8 +494,8 @@ Array!Connection generateNet(Grid* grid, Vec3 start) {
 		processNeighbour(current, Direction.up);
 		processNeighbour(current, Direction.down);
 
-		bool blockedUpwards = grid.validBounds(current.x, current.z, current.y + 1)
-			&& grid.get(current.x, current.z, current.y + 1).type == BlockType.regularBlock;
+		bool blockedUpwards = grid.validBounds(current.plus(Vec3(0,0,1)))
+			&& grid.get(current.plus(Vec3(0,0,1))).type == BlockType.regularBlock;
 
 		if(!blockedUpwards) {
 			processNeighbour(current.plus(Vec3(0,0,1)), Direction.right);
@@ -505,8 +506,8 @@ Array!Connection generateNet(Grid* grid, Vec3 start) {
 
 		void checkDownwardsConnections(Vec3 current, Direction direction) {
 			Vec3 position = current.plus(direction.offset());
-			bool blockedDownwards = grid.validBounds(position.x, position.y, position.z)
-				&& grid.get(position.x, position.y, position.z).type == BlockType.regularBlock;
+			bool blockedDownwards = grid.validBounds(position)
+				&& grid.get(position).type == BlockType.regularBlock;
 			if(!blockedDownwards) {
 				processNeighbour(position.plus(Vec3(0,0,-1)), direction);
 			}
@@ -582,7 +583,7 @@ void drawGrid(Application* app, Grid* grid, Scoped!Context* cr) {
 	foreach(x; 0..grid.width) {
 		foreach(y; 0..grid.height) {
 			cr.save();
-				Block color = grid.get(x, y, app.selectedDepth);
+				Block color = grid.get(Vec3(x, y, app.selectedDepth));
 				ImageSurface surface = app.getImage(grid, color, x, y, app.selectedDepth);
 				cr.translate(2 + x * tileWidth, 2 + y * tileWidth);
 				fixDirection(cr, color);
@@ -602,43 +603,44 @@ bool onMouseButtonPress(Application* app, Grid* grid, uint button, double xWin, 
 	if(button == mouseLeftButton || button == mouseRightButton) {
 		long posX = cast(ulong)((xWin + app.cameraX) / tileWidth);
 		long posY = cast(ulong)((yWin + app.cameraY) / tileWidth);
-		if(grid.validBounds(posX, posY, app.selectedDepth)) {
+		Vec3 mouseSelection = Vec3(posX, posY, app.selectedDepth);
+		if(grid.validBounds(mouseSelection)) {
 			BlockType type = app.pickedColor;
 			if(button == mouseRightButton) {
 				type = BlockType.none;
 			}
 			Direction direction = Direction.up;
 			if(type == BlockType.redstoneTorch) {
-				if(grid.validBounds(posX, posY - 1, app.selectedDepth) && grid.get(posX, posY - 1, app.selectedDepth).type == BlockType.regularBlock) { //check if block is up
+				if(grid.validBounds(mouseSelection.plus(Vec3(0,-1,0))) && grid.get(mouseSelection.plus(Vec3(0,-1,0))).type == BlockType.regularBlock) { //check if block is up
 					direction = Direction.down;
 				}
-				if(grid.validBounds(posX + 1, posY, app.selectedDepth) && grid.get(posX + 1, posY, app.selectedDepth).type == BlockType.regularBlock) { //check if block is right
+				if(grid.validBounds(mouseSelection.plus(Vec3(1,0,0))) && grid.get(mouseSelection.plus(Vec3(1,0,0))).type == BlockType.regularBlock) { //check if block is right
 					direction = Direction.right;
 				}
-				if(grid.validBounds(posX, posY + 1, app.selectedDepth) && grid.get(posX, posY + 1, app.selectedDepth).type == BlockType.regularBlock) { //check if block is down
+				if(grid.validBounds(mouseSelection.plus(Vec3(0,1,0))) && grid.get(mouseSelection.plus(Vec3(0,1,0))).type == BlockType.regularBlock) { //check if block is down
 					direction = Direction.up;
 				}
-				if(grid.validBounds(posX - 1, posY, app.selectedDepth) && grid.get(posX - 1, posY, app.selectedDepth).type == BlockType.regularBlock) { //check if block is left
+				if(grid.validBounds(mouseSelection.plus(Vec3(-1,0,0))) && grid.get(mouseSelection.plus(Vec3(-1,0,0))).type == BlockType.regularBlock) { //check if block is left
 					direction = Direction.left;
 				}
 			}
 			if(type == BlockType.redstoneRepeater) {
-				if(grid.validBounds(posX, posY, app.selectedDepth)) {
-					Block old = grid.get(posX, posY, app.selectedDepth);
+				if(grid.validBounds(mouseSelection)) {
+					Block old = grid.get(mouseSelection);
 					if(old.type == BlockType.redstoneRepeater) {
 						direction = clockwise(old.direction);
 					}
 				}
 			}
 			if(type == BlockType.redstoneComparator) {
-				if(grid.validBounds(posX, posY, app.selectedDepth)) {
-					Block old = grid.get(posX, posY, app.selectedDepth);
+				if(grid.validBounds(mouseSelection)) {
+					Block old = grid.get(mouseSelection);
 					if(old.type == BlockType.redstoneComparator) {
 						direction = clockwise(old.direction);
 					}
 				}
 			}
-			grid.set(posX, posY, app.selectedDepth, Block(type, direction));
+			grid.set(mouseSelection, Block(type, direction));
 			return true;
 		}
 	}
