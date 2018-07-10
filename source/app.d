@@ -133,12 +133,22 @@ struct Application {
 		null
 	];
 
+	ImageSurface[] imageComparator = [
+		null,
+		null,
+		null,
+		null
+	];
+
 	ImageSurface getImage(Grid* grid, Block block, long x, long y, long z) {
 		if(block.type == BlockType.redstoneTorch) {
 			return imageRedstoneTorch[block.direction];
 		}
 		if(block.type == BlockType.redstoneRepeater) {
 			return imageRepeaterOne[block.direction];
+		}
+		if(block.type == BlockType.redstoneComparator) {
+			return imageComparator[block.direction];
 		}
 		return defaultImages[block.type];
 	}
@@ -182,6 +192,11 @@ struct Application {
 		imageRepeaterFour[Direction.left] = ImageSurface.createFromPng("icons/repeater_4_left.png");
 		imageRepeaterFour[Direction.down] = ImageSurface.createFromPng("icons/repeater_4_up.png");
 		imageRepeaterFour[Direction.up] = ImageSurface.createFromPng("icons/repeater_4_down.png");
+
+		imageComparator[Direction.right] = ImageSurface.createFromPng("icons/comparator_comp_right.png");
+		imageComparator[Direction.left] = ImageSurface.createFromPng("icons/comparator_comp_left.png");
+		imageComparator[Direction.down] = ImageSurface.createFromPng("icons/comparator_comp_down.png");
+		imageComparator[Direction.up] = ImageSurface.createFromPng("icons/comparator_comp_up.png");
 	}
 }
 
@@ -544,8 +559,12 @@ double degreesToRadians(double degrees)
     return degrees * (PI/180.0);
 }
 
-void fixDirection(Scoped!Context* cr, Direction direction) {
-	final switch(direction) {
+void fixDirection(Scoped!Context* cr, Block block) {
+	if(block.type == BlockType.redstoneComparator) {
+		// ???
+		return;
+	}
+	final switch(block.direction) {
 		case Direction.up:
 		case Direction.down:
 			cr.rotate(degreesToRadians(180));
@@ -566,7 +585,7 @@ void drawGrid(Application* app, Grid* grid, Scoped!Context* cr) {
 				Block color = grid.get(x, y, app.selectedDepth);
 				ImageSurface surface = app.getImage(grid, color, x, y, app.selectedDepth);
 				cr.translate(2 + x * tileWidth, 2 + y * tileWidth);
-				fixDirection(cr, color.direction);
+				fixDirection(cr, color);
 				if(surface !is null) {
 					cr.setSourceSurface(surface, 0, 0);
 				} else {
@@ -607,6 +626,14 @@ bool onMouseButtonPress(Application* app, Grid* grid, uint button, double xWin, 
 				if(grid.validBounds(posX, posY, app.selectedDepth)) {
 					Block old = grid.get(posX, posY, app.selectedDepth);
 					if(old.type == BlockType.redstoneRepeater) {
+						direction = clockwise(old.direction);
+					}
+				}
+			}
+			if(type == BlockType.redstoneComparator) {
+				if(grid.validBounds(posX, posY, app.selectedDepth)) {
+					Block old = grid.get(posX, posY, app.selectedDepth);
+					if(old.type == BlockType.redstoneComparator) {
 						direction = clockwise(old.direction);
 					}
 				}
