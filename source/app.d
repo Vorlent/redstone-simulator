@@ -350,6 +350,23 @@ bool isOutputDirection(Block block, Direction direction) {
 	}
 }
 
+bool isInputDirection(Block block, Direction direction) {
+	final switch(block.type) {
+		case BlockType.none:
+			return false;
+		case BlockType.redstoneWire:
+			return true;
+		case BlockType.redstoneTorch:
+			return opposite(block.direction) == direction;
+		case BlockType.redstoneRepeater:
+			return opposite(block.direction) == direction;
+		case BlockType.redstoneComparator:
+			return opposite(block.direction) == direction;
+		case BlockType.regularBlock:
+			return false;
+	}
+}
+
 Array!Vec3 findOutputComponents(Grid* grid) {
 	Array!Vec3 outputComponents = Array!Vec3();
 	foreach(x; 0..grid.width) {
@@ -426,7 +443,7 @@ Array!Connection generateNet(Grid* grid, Vec3 start) {
 					}
 					Vec3 position = neighbour.plus(direction.offset());
 					Block block = grid.get(position.x, position.y, position.z);
-					if(block.direction == direction && block.isInputComponent()) {
+					if(isInputDirection(block, opposite(direction)) && block.isInputComponent()) {
 						connections.insert(Connection(start, position, currentDistance, direction.opposite()));
 					}
 				}
@@ -437,7 +454,7 @@ Array!Connection generateNet(Grid* grid, Vec3 start) {
 				return;
 			}
 
-			if(componentType.isInputComponent()) {
+			if(isInputDirection(componentType, opposite(direction)) && componentType.isInputComponent()) {
 				connections.insert(Connection(start, neighbour, currentDistance, direction));
 				return;
 			}
