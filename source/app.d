@@ -1,3 +1,5 @@
+module redsim.app;
+
 import gtk.MainWindow;
 import gtk.Label;
 import gtk.Main;
@@ -11,52 +13,18 @@ import cairo.Context;
 import std.stdio : writeln, stdout;
 import gdk.Event;
 import std.container : Array;
-import std.bitmanip : bitfields;
 import cairo.ImageSurface;
-import std.conv;
 import std.math : PI;
+import redsim.Direction;
+import redsim.Vec3;
+import redsim.Grid;
+import redsim.Block;
+import redsim.Generator;
 
 enum tileWidth = 16 + 1;
 enum mouseLeftButton = 1;
 enum mouseMiddleButton = 2;
 enum mouseRightButton = 3;
-
-struct Grid {
-	Block[] grid;
-
-	int width;
-	int height;
-	int depth;
-
-	this(int width, int height, int depth)
-	{
-		this.width = width;
-		this.height = height;
-		this.depth = depth;
-		this.grid = new Block[width * height * depth];
-	}
-
-	Block get(Vec3 position) {
-		return grid[width * height * position.z + position.y * width + position.x];
-	}
-
-	void set(Vec3 position, Block value) {
-		grid[width * height * position.z + position.y * width + position.x] = value;
-	}
-
-	bool validBounds(Vec3 position) {
-		long index = width * height * position.z + position.y * width + position.x;
-		return index < grid.length && index >= 0;
-	}
-}
-
-void populateGrid(Grid grid, long selectedDepth) {
-	foreach(x; 0..grid.width) {
-		foreach(y; 0..grid.height) {
-			grid.set(Vec3(x, y, selectedDepth), Block(BlockType.none, Direction.up));
-		}
-	}
-}
 
 double[][] colors = [
 	[1.0, 1.0, 1.0],
@@ -200,327 +168,6 @@ struct Application {
 	}
 }
 
-struct Vec3 {
-	long x;
-	long y;
-	long z;
-
-	Vec3 plus(Vec3 vec) {
-		return Vec3(vec.x + this.x, vec.y + this.y, vec.z + this.z);
-	}
-
-	void toString(scope void delegate(const(char)[]) sink) const
-	{
-		sink("Vec3[ x: ");
-		sink(to!string(x));
-		sink(", y: ");
-		sink(to!string(y));
-		sink(", z: ");
-		sink(to!string(z));
-		sink(" ]");
-	}
-}
-
-struct Connection {
-	Vec3 output;
-	Vec3 input;
-	byte distance;
-	Direction direction;
-
-	this(Vec3 output, Vec3 input, byte distance, Direction direction) {
-		this.output = output;
-		this.input = input;
-		this.distance = distance;
-		this.direction = direction;
-	}
-
-	void toString(scope void delegate(const(char)[]) sink) const
-	{
-		sink("Connection[ output: ");
-		output.toString(sink);
-		sink(", input: ");
-		input.toString(sink);
-		sink(", distance: ");
-		sink(to!string(distance));
-		sink(", direction: ");
-		sink(to!string(direction));
-		sink(" ]");
-	}
-}
-
-struct GridMetadata {
-	bool closed;
-	byte distance;
-	Vec3 parent;
-}
-
-struct Block {
-	byte value;
-
-	static Block fromByte(byte value) {
-		Block block = Block();
-		block.value = value;
-		return block;
-	}
-
-	this(BlockType type, Direction direction) {
-		this.type = type;
-		this.direction = direction;
-	}
-
-mixin(bitfields!(
-    BlockType, "type", 6,
-    Direction, "direction", 2));
-}
-
-enum Direction
-{
-	up = 0,
-	down = 1,
-	left = 2,
-	right = 3
-}
-
-Direction clockwise(Direction direction) {
-	final switch(direction) {
-		case Direction.up:
-			return Direction.right;
-		case Direction.right:
-			return Direction.down;
-		case Direction.down:
-			return Direction.left;
-		case Direction.left:
-			return Direction.up;
-	}
-}
-
-Direction opposite(Direction direction) {
-	final switch(direction) {
-		case Direction.up:
-			return Direction.down;
-		case Direction.down:
-			return Direction.up;
-		case Direction.left:
-			return Direction.right;
-		case Direction.right:
-			return Direction.left;
-	}
-}
-
-Vec3 offset(Direction direction) {
-	final switch(direction) {
-		case Direction.up:
-			return Vec3(0, -1, 0);
-		case Direction.down:
-			return Vec3(0, +1, 0);
-		case Direction.left:
-			return Vec3(-1, 0, 0);
-		case Direction.right:
-			return Vec3(+1, 0, 0);
-	}
-}
-
-enum BlockType
-{
-	none = 0,
-	redstoneWire = 1,
-	redstoneTorch = 2,
-	redstoneRepeater = 3,
-	redstoneComparator = 4,
-	regularBlock = 5
-}
-
-bool isRedstoneComponent(Block block) {
-	return block.type == BlockType.redstoneWire
-	|| block.type == BlockType.redstoneTorch
-	|| block.type == BlockType.redstoneRepeater
-	|| block.type == BlockType.redstoneComparator;
-}
-
-bool isInputComponent(Block block) {
-	return block.type == BlockType.redstoneTorch
-	|| block.type == BlockType.redstoneRepeater
-	|| block.type == BlockType.redstoneComparator;
-}
-
-bool isOutputComponent(Block block) {
-	return block.type == BlockType.redstoneTorch
-	|| block.type == BlockType.redstoneRepeater
-	|| block.type == BlockType.redstoneComparator;
-}
-
-bool isOutputDirection(Block block, Direction direction) {
-	final switch(block.type) {
-		case BlockType.none:
-			return false;
-		case BlockType.redstoneWire:
-			return true;
-		case BlockType.redstoneTorch:
-			return opposite(block.direction) != direction;
-		case BlockType.redstoneRepeater:
-			return block.direction == direction;
-		case BlockType.redstoneComparator:
-			return block.direction == direction;
-		case BlockType.regularBlock:
-			return false;
-	}
-}
-
-bool isInputDirection(Block block, Direction direction) {
-	final switch(block.type) {
-		case BlockType.none:
-			return false;
-		case BlockType.redstoneWire:
-			return true;
-		case BlockType.redstoneTorch:
-			return opposite(block.direction) == direction;
-		case BlockType.redstoneRepeater:
-			return opposite(block.direction) == direction;
-		case BlockType.redstoneComparator:
-			return opposite(block.direction) == direction;
-		case BlockType.regularBlock:
-			return false;
-	}
-}
-
-Array!Vec3 findOutputComponents(Grid* grid) {
-	Array!Vec3 outputComponents = Array!Vec3();
-	foreach(x; 0..grid.width) {
-		foreach(y; 0..grid.height) {
-			foreach(z; 0..grid.depth) {
-				Vec3 pos = Vec3(x,y,z);
-				if(isOutputComponent(grid.get(pos))) {
-					outputComponents.insert(pos);
-				}
-			}
-		}
-	}
-	return outputComponents;
-}
-
-Array!Connection generateNet(Grid* grid, Vec3 start) {
-
-	// TODO reuse datastructures
-	Array!Vec3 open = Array!Vec3();
-	Array!Connection connections = Array!Connection();
-	// TODO make 32x32x32 grid centered on start point
-	Array!GridMetadata metaGrid = Array!GridMetadata();
-
-	GridMetadata gridMetadata = {
-		closed: false,
-		distance: -1,
-		parent: Vec3(0, 0, 0)
-	};
-
-	foreach(x; 0..grid.grid.length) {
-		metaGrid.insert(gridMetadata);
-	}
-
-	open.insert(start);
-
-	while(!open.empty) {
-		Vec3 current = open.back();
-		open.removeBack();
-
-		GridMetadata* metaCurrent = &metaGrid[grid.width * grid.height * current.z + current.y * grid.width + current.x];
-		if(metaCurrent.closed) {
-			continue;
-		}
-
-		metaCurrent.closed = true;
-
-		void processNeighbour(Vec3 current, Direction direction) {
-			Vec3 neighbour = current.plus(direction.offset());
-
-			if(!grid.validBounds(current)) {
-				return;
-			}
-			if(!isOutputDirection(grid.get(current), direction)) {
-				return;
-			}
-
-			if(!grid.validBounds(neighbour)) {
-				return;
-			}
-
-			Block componentType = grid.get(neighbour);
-
-			GridMetadata* metaNeighbour = &metaGrid[grid.width * grid.height * neighbour.z + neighbour.y * grid.width + neighbour.x];
-
-			if(!isRedstoneComponent(componentType) || metaNeighbour.closed) {
-				return;
-			}
-
-			byte currentDistance = metaCurrent.distance;
-
-			if(componentType.type == BlockType.regularBlock) {
-				void indirectlyPowered(Direction direction) {
-					if(!isOutputDirection(componentType, direction)) {
-						return;
-					}
-					Vec3 position = neighbour.plus(direction.offset());
-					Block block = grid.get(position);
-					if(isInputDirection(block, opposite(direction)) && block.isInputComponent()) {
-						connections.insert(Connection(start, position, currentDistance, direction.opposite()));
-					}
-				}
-				indirectlyPowered(Direction.left);
-				indirectlyPowered(Direction.right);
-				indirectlyPowered(Direction.up);
-				indirectlyPowered(Direction.down);
-				return;
-			}
-
-			if(isInputDirection(componentType, opposite(direction)) && componentType.isInputComponent()) {
-				connections.insert(Connection(start, neighbour, currentDistance, direction));
-				return;
-			}
-
-			if(currentDistance > 15) {
-				return;
-			}
-
-			open.insert(neighbour);
-
-			if(metaNeighbour.distance > currentDistance + 1 || metaNeighbour.distance == -1) {
-				metaNeighbour.distance = cast(byte)(currentDistance + 1);
-				metaNeighbour.parent = current;
-				stdout.flush();
-			}
-		}
-
-		processNeighbour(current, Direction.right);
-		processNeighbour(current, Direction.left);
-		processNeighbour(current, Direction.up);
-		processNeighbour(current, Direction.down);
-
-		bool blockedUpwards = grid.validBounds(current.plus(Vec3(0,0,1)))
-			&& grid.get(current.plus(Vec3(0,0,1))).type == BlockType.regularBlock;
-
-		if(!blockedUpwards) {
-			processNeighbour(current.plus(Vec3(0,0,1)), Direction.right);
-			processNeighbour(current.plus(Vec3(0,0,1)), Direction.left);
-			processNeighbour(current.plus(Vec3(0,0,1)), Direction.up);
-			processNeighbour(current.plus(Vec3(0,0,1)), Direction.down);
-		}
-
-		void checkDownwardsConnections(Vec3 current, Direction direction) {
-			Vec3 position = current.plus(direction.offset());
-			bool blockedDownwards = grid.validBounds(position)
-				&& grid.get(position).type == BlockType.regularBlock;
-			if(!blockedDownwards) {
-				processNeighbour(position.plus(Vec3(0,0,-1)), direction);
-			}
-		}
-
-		checkDownwardsConnections(current, Direction.right);
-		checkDownwardsConnections(current, Direction.left);
-		checkDownwardsConnections(current, Direction.up);
-		checkDownwardsConnections(current, Direction.down);
-	}
-	return connections;
-}
-
 /*
 //TODO support incremental simuation to only simulate changes
 function simulateTick(Array!Connection netlist) {
@@ -611,16 +258,20 @@ bool onMouseButtonPress(Application* app, Grid* grid, uint button, double xWin, 
 			}
 			Direction direction = Direction.up;
 			if(type == BlockType.redstoneTorch) {
-				if(grid.validBounds(mouseSelection.plus(Vec3(0,-1,0))) && grid.get(mouseSelection.plus(Vec3(0,-1,0))).type == BlockType.regularBlock) { //check if block is up
+				if(grid.validBounds(mouseSelection.plus(Vec3(0,-1,0)))
+					&& grid.get(mouseSelection.plus(Vec3(0,-1,0))).type == BlockType.regularBlock) { //check if block is up
 					direction = Direction.down;
 				}
-				if(grid.validBounds(mouseSelection.plus(Vec3(1,0,0))) && grid.get(mouseSelection.plus(Vec3(1,0,0))).type == BlockType.regularBlock) { //check if block is right
+				if(grid.validBounds(mouseSelection.plus(Vec3(1,0,0)))
+					&& grid.get(mouseSelection.plus(Vec3(1,0,0))).type == BlockType.regularBlock) { //check if block is right
 					direction = Direction.right;
 				}
-				if(grid.validBounds(mouseSelection.plus(Vec3(0,1,0))) && grid.get(mouseSelection.plus(Vec3(0,1,0))).type == BlockType.regularBlock) { //check if block is down
+				if(grid.validBounds(mouseSelection.plus(Vec3(0,1,0)))
+					&& grid.get(mouseSelection.plus(Vec3(0,1,0))).type == BlockType.regularBlock) { //check if block is down
 					direction = Direction.up;
 				}
-				if(grid.validBounds(mouseSelection.plus(Vec3(-1,0,0))) && grid.get(mouseSelection.plus(Vec3(-1,0,0))).type == BlockType.regularBlock) { //check if block is left
+				if(grid.validBounds(mouseSelection.plus(Vec3(-1,0,0)))
+					&& grid.get(mouseSelection.plus(Vec3(-1,0,0))).type == BlockType.regularBlock) { //check if block is left
 					direction = Direction.left;
 				}
 			}
