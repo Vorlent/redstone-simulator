@@ -248,12 +248,11 @@ void main(string[] args)
 	ToolButton runButton = new ToolButton(null, "Run");
 	toolbar.insert(runButton);
 	runButton.addOnClicked ((ToolButton tb) {
-		foreach(output; findOutputComponents(&grid)) {
-			Array!Connection connections = generateNet(&grid, output);
-			writeln(connections.length());
-			foreach(con; connections) {
-				writeln(con);
-			}
+		Array!Connection connections = Array!Connection();
+		Generator generator = Generator(&grid);
+		generator.generateNet(&connections);
+		foreach(con; connections) {
+			writeln(con);
 		}
 	});
 
