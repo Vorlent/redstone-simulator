@@ -138,6 +138,13 @@ void drawGrid(Application* app, Grid* grid, Scoped!Context* cr) {
 	}
 }
 
+Direction rotateOnClick(Block old, BlockType type, Direction direction) {
+	if(old.type == type) {
+		return clockwise(old.direction);
+	}
+	return direction;
+}
+
 bool onMouseButtonPress(Application* app, Grid* grid, uint button, double xWin, double yWin) {
 	if(button == mouseLeftButton || button == mouseRightButton) {
 		long posX = cast(ulong)((xWin + app.cameraX) / tileWidth);
@@ -167,22 +174,8 @@ bool onMouseButtonPress(Application* app, Grid* grid, uint button, double xWin, 
 					direction = Direction.left;
 				}
 			}
-			if(type == BlockType.redstoneRepeater) {
-				if(grid.validBounds(mouseSelection)) {
-					Block old = grid.get(mouseSelection);
-					if(old.type == BlockType.redstoneRepeater) {
-						direction = clockwise(old.direction);
-					}
-				}
-			}
-			if(type == BlockType.redstoneComparator) {
-				if(grid.validBounds(mouseSelection)) {
-					Block old = grid.get(mouseSelection);
-					if(old.type == BlockType.redstoneComparator) {
-						direction = clockwise(old.direction);
-					}
-				}
-			}
+			direction = rotateOnClick(grid.get(mouseSelection), BlockType.redstoneRepeater, direction);
+			direction = rotateOnClick(grid.get(mouseSelection), BlockType.redstoneComparator, direction);
 			grid.set(mouseSelection, Block(type, direction));
 			return true;
 		}
