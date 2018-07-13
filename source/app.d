@@ -100,19 +100,20 @@ double degreesToRadians(double degrees)
 }
 
 void fixDirection(Scoped!Context* cr, Block block) {
-	if(block.type == BlockType.redstoneComparator) {
-		// ???
-		return;
-	}
 	final switch(block.direction) {
 		case Direction.up:
-		case Direction.down:
 			cr.rotate(degreesToRadians(180));
 			cr.translate(-tileWidth + 1, -tileWidth + 1);
 			break;
-		case Direction.right:
+		case Direction.down:
+			break;
 		case Direction.left:
-		//no rotation
+			cr.rotate(degreesToRadians(90));
+			cr.translate(0, -tileWidth + 1);
+			break;
+		case Direction.right:
+		  cr.rotate(degreesToRadians(270));
+			cr.translate(-tileWidth + 1, 0);
 			break;
 	}
 }

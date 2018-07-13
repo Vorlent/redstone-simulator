@@ -58,22 +58,13 @@ struct Images {
 	];
 
 	ImageSurface getImage(Grid* grid, Block block, long x, long y, long z) {
-		if(block.type == BlockType.redstoneTorch) {
-			return imageRedstoneTorch[block.direction];
-		}
-		if(block.type == BlockType.redstoneRepeater) {
-			return imageRepeaterOne[block.direction];
-		}
-		if(block.type == BlockType.redstoneComparator) {
-			return imageComparator[block.direction];
-		}
 		return defaultImages[block.type];
 	}
 
 	void loadImages() {
 		defaultImages[BlockType.redstoneWire] = ImageSurface.createFromPng("icons/redstone_cross.png");
-		defaultImages[BlockType.redstoneRepeater] = ImageSurface.createFromPng("icons/repeater_1_right.png");
-		defaultImages[BlockType.redstoneComparator] = ImageSurface.createFromPng("icons/comparator_comp_left.png");
+		defaultImages[BlockType.redstoneRepeater] = ImageSurface.createFromPng("icons/repeater_1_down.png");
+		defaultImages[BlockType.redstoneComparator] = ImageSurface.createFromPng("icons/comparator_comp_down.png");
 		defaultImages[BlockType.redstoneTorch] = ImageSurface.createFromPng("icons/redstone_torch_up.png");
 
 		/*imageRedstoneUnconnected = ImageSurface.createFromPng("icons/redstone_unconnected.png");
