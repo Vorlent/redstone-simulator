@@ -164,7 +164,7 @@ bool onMouseButtonPress(Application* app, Grid* grid, uint button, double xWin, 
 				}
 				if(grid.validBounds(mouseSelection.plus(Vec3(1,0,0)))
 					&& grid.get(mouseSelection.plus(Vec3(1,0,0))).type == BlockType.regularBlock) { //check if block is right
-					direction = Direction.right;
+					direction = Direction.left;
 				}
 				if(grid.validBounds(mouseSelection.plus(Vec3(0,1,0)))
 					&& grid.get(mouseSelection.plus(Vec3(0,1,0))).type == BlockType.regularBlock) { //check if block is down
@@ -172,7 +172,7 @@ bool onMouseButtonPress(Application* app, Grid* grid, uint button, double xWin, 
 				}
 				if(grid.validBounds(mouseSelection.plus(Vec3(-1,0,0)))
 					&& grid.get(mouseSelection.plus(Vec3(-1,0,0))).type == BlockType.regularBlock) { //check if block is left
-					direction = Direction.left;
+					direction = Direction.right;
 				}
 			}
 			direction = rotateOnClick(grid.get(mouseSelection), BlockType.redstoneRepeater, direction);
