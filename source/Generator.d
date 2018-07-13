@@ -43,12 +43,22 @@ struct GridMetadata {
 
 struct Generator {
 	// TODO make 32x32x32 grid centered on start point
-	//Array!GridMetadata metaGrid = Array!GridMetadata();
-	//Array!Vec3 open = Array!Vec3();
+	Array!GridMetadata metaGrid = Array!GridMetadata();
 	Grid* grid;
 
 	this(Grid* grid) {
 		this.grid = grid;
+		GridMetadata gridMetadata = {
+			closed: false,
+			distance: -1,
+			parent: Vec3(0, 0, 0)
+		};
+
+		metaGrid.reserve(grid.grid.length);
+
+		foreach(x; 0..grid.grid.length) {
+			metaGrid.insert(gridMetadata);
+		}
 	}
 
 	void generateNet(Array!Connection* connections) {
@@ -67,8 +77,6 @@ struct Generator {
   void generateNetForComponent(Array!Connection* connections, Vec3 start) {
   	// TODO reuse datastructures
   	Array!Vec3 open = Array!Vec3();
-  	// TODO make 32x32x32 grid centered on start point
-  	Array!GridMetadata metaGrid = Array!GridMetadata();
 
   	GridMetadata gridMetadata = {
   		closed: false,
@@ -76,10 +84,8 @@ struct Generator {
   		parent: Vec3(0, 0, 0)
   	};
 
-		metaGrid.reserve(grid.grid.length);
-
   	foreach(x; 0..grid.grid.length) {
-  		metaGrid.insert(gridMetadata);
+  		metaGrid[x] = gridMetadata;
   	}
 
   	open.insert(start);
