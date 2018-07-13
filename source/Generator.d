@@ -144,15 +144,16 @@ struct Generator {
   			}
 
   			if(isInputDirection(componentType, opposite(direction)) && componentType.isInputComponent()) {
-  				connections.insert(Connection(start, neighbour, currentDistance, direction));
+  				connections.insert(Connection(start, neighbour, currentDistance, opposite(direction)));
   				return;
   			}
 
   			if(currentDistance > 15) {
   				return;
   			}
-
-  			open.insert(neighbour);
+				if(isInputDirection(componentType, opposite(direction))) {
+					open.insert(neighbour);
+				}
 
   			if(metaNeighbour.distance > currentDistance + 1 || metaNeighbour.distance == -1) {
   				metaNeighbour.distance = cast(byte)(currentDistance + 1);
