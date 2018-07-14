@@ -74,6 +74,20 @@ struct Generator {
 		}
 	}
 
+	GridMetadata* get(Array!GridMetadata* metaGrid, Vec3 position, Vec3 center) {
+		// make is so that if pos == center then computed pos == 0,0
+		// make it so that if pos < center then computed pos < 0,0
+		// make it so that if pos > center then computed pos > 0,0
+		//  5,  5 - 5,5 =  0,  0
+		//  0,  0 - 5,5 = -5, -5
+		// 10, 10 - 5,5 =  5,  5
+		// extremes now (values that exceed or are equal to 15 or -15)
+		// -10, -10 - 5,5 = -15, -15
+		//  20,  20 - 5,5 =  15,  15
+		Vec3 local = center.minus(position);
+		return &((*metaGrid)[grid.width * grid.height * position.z + position.y * grid.width + position.x]);
+	}
+
   void generateNetForComponent(Array!Connection* connections, Vec3 start) {
   	// TODO reuse datastructures
   	Array!Vec3 open = Array!Vec3();
@@ -94,7 +108,7 @@ struct Generator {
   		Vec3 current = open.back();
   		open.removeBack();
 
-  		GridMetadata* metaCurrent = &metaGrid[grid.width * grid.height * current.z + current.y * grid.width + current.x];
+  		GridMetadata* metaCurrent = get(&metaGrid, current, start);
   		if(metaCurrent.closed) {
   			continue;
   		}
@@ -117,7 +131,7 @@ struct Generator {
 
   			Block componentType = grid.get(neighbour);
 
-  			GridMetadata* metaNeighbour = &metaGrid[grid.width * grid.height * neighbour.z + neighbour.y * grid.width + neighbour.x];
+  			GridMetadata* metaNeighbour = get(&metaGrid, neighbour, start);
 
   			if(!isRedstoneComponent(componentType) || metaNeighbour.closed) {
   				return;
@@ -148,7 +162,7 @@ struct Generator {
   				return;
   			}
 
-  			if(currentDistance > 15) {
+  			if(currentDistance >= 15) {
   				return;
   			}
 				if(isInputDirection(componentType, opposite(direction))) {
@@ -156,6 +170,9 @@ struct Generator {
 				}
 
   			if(metaNeighbour.distance > currentDistance + 1 || metaNeighbour.distance == -1) {
+					if(currentDistance == -1) {
+						currentDistance = 0;
+					}
   				metaNeighbour.distance = cast(byte)(currentDistance + 1);
   				metaNeighbour.parent = current;
   				stdout.flush();

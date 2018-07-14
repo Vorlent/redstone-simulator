@@ -10,6 +10,10 @@ struct Vec3 {
 		return Vec3(vec.x + this.x, vec.y + this.y, vec.z + this.z);
 	}
 
+	Vec3 minus(Vec3 vec) {
+		return Vec3(vec.x - this.x, vec.y - this.y, vec.z - this.z);
+	}
+
 	void toString(scope void delegate(const(char)[]) sink) const
 	{
 		sink("Vec3[ x: ");
