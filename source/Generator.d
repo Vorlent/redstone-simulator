@@ -42,23 +42,10 @@ struct GridMetadata {
 }
 
 struct Generator {
-	// TODO make 32x32x32 grid centered on start point
-	Array!GridMetadata metaGrid = Array!GridMetadata();
 	Grid* grid;
 
 	this(Grid* grid) {
 		this.grid = grid;
-		GridMetadata gridMetadata = {
-			closed: false,
-			distance: -1,
-			parent: Vec3(0, 0, 0)
-		};
-
-		metaGrid.reserve(grid.grid.length);
-
-		foreach(x; 0..grid.grid.length) {
-			metaGrid.insert(gridMetadata);
-		}
 	}
 
 	void generateNet(Array!Connection* connections) {
@@ -75,21 +62,12 @@ struct Generator {
 	}
 
 	GridMetadata* get(Array!GridMetadata* metaGrid, Vec3 position, Vec3 center) {
-		// make is so that if pos == center then computed pos == 0,0
-		// make it so that if pos < center then computed pos < 0,0
-		// make it so that if pos > center then computed pos > 0,0
-		//  5,  5 - 5,5 =  0,  0
-		//  0,  0 - 5,5 = -5, -5
-		// 10, 10 - 5,5 =  5,  5
-		// extremes now (values that exceed or are equal to 15 or -15)
-		// -10, -10 - 5,5 = -15, -15
-		//  20,  20 - 5,5 =  15,  15
-		Vec3 local = center.minus(position);
-		return &((*metaGrid)[grid.width * grid.height * position.z + position.y * grid.width + position.x]);
+		Vec3 local = center.minus(position).plus(Vec3(15, 15, 15));
+		long index = 33/*width*/ * 33/*height*/ * local.z + local.y * /*width*/ + local.x;
+		return &((*metaGrid)[index]);
 	}
 
   void generateNetForComponent(Array!Connection* connections, Vec3 start) {
-  	// TODO reuse datastructures
   	Array!Vec3 open = Array!Vec3();
 
   	GridMetadata gridMetadata = {
@@ -97,8 +75,8 @@ struct Generator {
   		distance: -1,
   		parent: Vec3(0, 0, 0)
   	};
-
-  	foreach(x; 0..grid.grid.length) {
+		metaGrid.reserve(33*33*33);
+  	foreach(x; 0..(33*33*33)) {
   		metaGrid[x] = gridMetadata;
   	}
 
