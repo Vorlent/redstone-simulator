@@ -5,8 +5,11 @@ import redsim.Vec3;
 import redsim.Direction;
 import redsim.Grid;
 import std.container : Array;
+import std.array;
 import std.conv;
 import std.stdio : writeln, stdout;
+import std.algorithm.sorting : sort;
+import std.algorithm.mutation : SwapStrategy;
 
 struct Connection {
 	Vec3 output;
@@ -32,6 +35,15 @@ struct Connection {
 		sink(", direction: ");
 		sink(to!string(direction));
 		sink(" ]");
+	}
+
+	int opCmp(ref const Connection v) const {
+		int cmp = output.opCmp(v.output);
+		if(cmp == 0) {
+			return input.opCmp(v.input);
+		} else {
+			return cmp;
+		}
 	}
 }
 
@@ -59,6 +71,11 @@ struct Generator {
 				}
 			}
 		}
+		long i = 0;
+		foreach(con; sort(array(connections.opSlice()))) {
+			(*connections)[i] = con;
+			i++;
+		}
 	}
 
 	GridMetadata* get(Array!GridMetadata* metaGrid, Vec3 position, Vec3 center) {
@@ -69,6 +86,7 @@ struct Generator {
 
   void generateNetForComponent(Array!Connection* connections, Vec3 start) {
   	Array!Vec3 open = Array!Vec3();
+		Array!GridMetadata metaGrid = Array!GridMetadata();
 
   	GridMetadata gridMetadata = {
   		closed: false,
@@ -77,7 +95,7 @@ struct Generator {
   	};
 		metaGrid.reserve(33*33*33);
   	foreach(x; 0..(33*33*33)) {
-  		metaGrid[x] = gridMetadata;
+  		metaGrid.insert(gridMetadata);
   	}
 
   	open.insert(start);
@@ -125,7 +143,7 @@ struct Generator {
   					Vec3 position = neighbour.plus(direction.offset());
   					Block block = grid.get(position);
   					if(isInputDirection(block, opposite(direction)) && block.isInputComponent()) {
-  						connections.insert(Connection(start, position, currentDistance, direction.opposite()));
+  						connections.insert(Connection(position, start, currentDistance, direction.opposite()));
   					}
   				}
   				indirectlyPowered(Direction.left);
@@ -136,7 +154,7 @@ struct Generator {
   			}
 
   			if(isInputDirection(componentType, opposite(direction)) && componentType.isInputComponent()) {
-  				connections.insert(Connection(start, neighbour, currentDistance, opposite(direction)));
+  				connections.insert(Connection(neighbour, start, currentDistance, opposite(direction)));
   				return;
   			}
 
